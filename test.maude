@@ -1,0 +1,67 @@
+load atm.maude .
+
+fmod TEST is
+	protecting BANK .
+	protecting ATM .
+
+	var b : Balance .
+	var str : String .
+
+	--- define environment
+	op testCard : -> Card .
+	eq testCard = card(123456789, 1234, 10000, "VUB") .
+
+	op testCardPin : -> CardPin .
+	eq testCardPin = 1234 .
+
+	op testCard2 : -> Card .
+	eq testCard2 = card(987654321, 4321, 500, "CSOB") .
+
+	op testCardPin2 : -> CardPin .
+	eq testCardPin2 = 4321 .
+
+	op testAccount : -> Account .
+	eq testAccount = account("VUB", testCard) . 
+
+	op testAccount2 : -> Account .
+	eq testAccount2 = account("CSOB", testCard2) .
+
+	op testMoney : -> Money .
+	eq testMoney = money(1, 0, 0, 0, 0) .
+
+	op testMoney2 : -> Money .
+	eq testMoney2 = money(10, 0, 0, 0, 5) .
+
+	op testBank : -> Bank .
+	eq testBank = bank("VUB", bankAccs(testAccount, bankAccs)) .
+
+	op testBank2 : -> Bank .
+	eq testBank2 = bank("CSOB", bankAccs(testAccount2, bankAccs)) .
+
+	op testBanks : -> Banks .
+	eq testBanks = banks(testBank, banks(testBank2, banks)) .
+
+	op testAtm : -> Atm .
+	eq testAtm = atm(2468, testBanks, atmbalance(100, 500, 500, 50, 10)) .
+
+	--- demonstrate usage
+	op testWithdraw : -> Status .
+	eq testWithdraw = withdraw(testMoney, testCard, testCardPin, testAtm) .
+
+	op testDeposit : -> Status .
+	eq testDeposit = deposit(testMoney2, testCard2, testCardPin2, testAtm) .
+
+	op testCheckAccountBalance : -> Balance .
+	eq testCheckAccountBalance = checkAccountBalance(testCard, testCardPin, testAtm) .
+
+	op testAccountInfo : -> Account .
+	eq testAccountInfo = getAccountInfo(testCard2, testCardPin2, testAtm) .
+
+	--- test for invalid withdraw - not enough money
+	op testInvalidWithdraw : -> Status .
+	eq testInvalidWithdraw = withdraw(testMoney2, testCard2, testCardPin2, testAtm) .
+
+	--- test for invalid deposit - wrong card pin
+	op testInvalidDeposit : -> Status .
+	eq testInvalidDeposit = deposit(testMoney2, testCard2, testCardPin, testAtm) .
+endfm
