@@ -1,0 +1,317 @@
+fmod BANK is
+	protecting NAT .
+	protecting RAT .
+	protecting STRING .
+	sort Account .
+	sorts Card CardNum CardPin Balance .
+	sorts Banks Bank BankName BankAccounts .
+	sort Status .
+	subsort String < BankName .
+	subsort Nat < CardPin .
+	subsort Nat < CardNum .
+	subsort Rat < Balance .
+
+	vars bankName bankName2 bankName3 : BankName .
+	var banksL : Banks .
+	var cardPin cardPin2 cardPinIn : CardPin .
+	var cardNum cardNum2 : CardNum .
+	var balance balance2 balanceIn : Balance .
+	var status : Status .
+	var acc : Account .
+	var st : Status .
+	var bankaccs bankaccs2 : BankAccounts .
+
+	op card : CardNum CardPin Balance BankName -> Card .
+	op account : BankName Card -> Account .
+	op nilAccount : -> Account .
+	op nilBalance : -> Balance .
+
+	
+	op bankAccs : Account BankAccounts -> BankAccounts .
+	op bankAccs : -> BankAccounts .
+	--- add a new bank account
+	op addAccount : Account Bank -> BankAccounts .
+	eq addAccount(acc, bank(bankName, bankaccs)) = bankAccs(acc, bankaccs) .
+
+	op bank : BankName BankAccounts -> Bank .
+
+	op banks : Bank Banks -> Banks .
+	op banks : -> Banks .
+	--- add a new bank
+	op addBank : Bank Banks -> Banks .
+	eq addBank(bank(bankName, bankaccs), banksL) = banks(bank(bankName, bankaccs), banksL) . 
+	--- get bank from its name
+	op getBank : BankName Banks -> Bank .
+	eq getBank(bankName, banks(bank(bankName2, bankaccs), banksL)) =
+	if bankName == bankName2
+		then bank(bankName2, bankaccs)
+	else getBank(bankName, banksL)
+	fi .
+
+	--- get bank accounts of concrete bank
+	op getBankAccounts : Bank Banks -> BankAccounts .
+	eq getBankAccounts(bank(bankName, bankaccs), banks(bank(bankName2, bankaccs2), banksL)) =
+	if bankName == bankName2
+		then bankaccs
+	else getBankAccounts(bank(bankName, bankaccs), banksL) 
+	fi .
+
+	--- get account from bank accounts database
+	op getAccount : Card BankAccounts -> Account .
+	eq getAccount(card(cardNum, cardPin, balance, bankName3), bankAccs(account(bankName, card(cardNum2, cardPin2, balance2, bankName3)), bankaccs)) =
+	if cardNum == cardNum2
+		then account(bankName, card(cardNum, cardPin, balance, bankName3))
+	else getAccount(card(cardNum, cardPin, balance, bankName3), bankaccs)
+	fi .
+
+	--- get balance of concrete account
+	op getAccBalance : Account -> Nat .
+	eq getAccBalance(account(bankName, card(cardNum, cardPin, balance, bankName3))) = balance .
+
+	--- helper status to determine several states
+	op status : Status -> Status .
+	eq status(st) = st .
+	ops wrongCardPin correctCardPin notEnoughMoney sufficientCardBalance withdrawSuccessful depositSuccessful : -> Status .
+
+	--- validate card - gets inserted pin and actual card
+	op validateCard : CardPin Card -> Status .
+	eq validateCard(cardPinIn, card(cardNum, cardPin, balance, bankName3)) = 
+		if cardPinIn == cardPin 
+			then status(correctCardPin)
+		else status(wrongCardPin)
+		fi .
+
+	--- check whether account has enough money for withdraw
+	op checkForSufficientBalance : Card Balance -> Status .
+	eq checkForSufficientBalance(card(cardNum, cardPin, balance, bankName3), balanceIn) =
+		if balance >= balanceIn
+			then status(sufficientCardBalance)
+		else status(notEnoughMoney)
+		fi .
+
+	--- deposit operation
+	op deposit : Account Status -> Status .
+	eq deposit(acc, status(st)) = st .
+
+	op deposit : Account Balance -> Status .
+	eq deposit(account(bankName, card(cardNum, cardPin, balance, bankName3)), balanceIn) = deposit(account(bankName, card(cardNum, cardPin, balance + balanceIn, bankName3)), status(depositSuccessful)) .
+	
+	op deposit : Account CardPin Balance -> Status .
+	eq deposit(account(bankName, card(cardNum, cardPin, balance, bankName3)), cardPinIn, balanceIn) =
+		if validateCard(cardPinIn, card(cardNum, cardPin, balance, bankName3)) == status(correctCardPin)
+			then deposit(account(bankName, card(cardNum, cardPin, balance, bankName3)), balanceIn)
+		else deposit(account(bankName, card(cardNum, cardPin, balance, bankName3)), status(wrongCardPin))
+		fi .
+
+
+	--- withdraw operation
+	op withdraw : Account Status -> Status .
+	eq deposit(acc, status(st)) = st .
+
+	op withdraw : Account Balance -> Status .
+	eq withdraw(account(bankName, card(cardNum, cardPin, balance, bankName3)), balanceIn) = withdraw(account(bankName, card(cardNum, cardPin, balance - balanceIn, bankName3)), status(withdrawSuccessful)) .
+	
+	op withdraw : Account CardPin Balance -> Status .
+	eq withdraw(account(bankName, card(cardNum, cardPin, balance, bankName3)), cardPinIn, balanceIn) =
+		if validateCard(cardPinIn, card(cardNum, cardPin, balance, bankName3)) == status(correctCardPin)
+			then 
+			if checkForSufficientBalance(card(cardNum, cardPin, balance, bankName3), balanceIn) == status(sufficientCardBalance)
+				then withdraw(account(bankName, card(cardNum, cardPin, balance, bankName3)), balanceIn)
+			else withdraw(account(bankName, card(cardNum, cardPin, balance, bankName3)), status(notEnoughMoney))
+			fi
+		else withdraw(account(bankName, card(cardNum, cardPin, balance, bankName3)), status(wrongCardPin))
+		fi .
+
+endfm
+ 
+
+fmod ATM is
+	protecting NAT .
+	protecting BANK .
+	sorts ATMBalance AtmNumber .
+	subsort Nat < ATMBalance .
+	sort Atm .
+	sorts M100 M200 M500 M1000 M2000 .
+	sort Money .
+	subsort Nat < Money .
+	subsort Nat < M100 M200 M500 M1000 M2000 .
+	subsort Nat < AtmNumber .
+
+	var cardBalance : Nat .
+	var bankName bankName3 : BankName .
+	var c : Card .
+	vars m100 m100_2 : M100 .
+	vars m200 m200_2 : M200 .
+	vars m500 m500_2 : M500 .
+	vars m1000 m1000_2 : M1000 .
+	vars m2000 m2000_2 : M2000 .
+	var atmNum : AtmNumber .
+	var cardNum : CardNum .
+	var cardPin cardPinIn : CardPin .
+	var balance : Balance .
+	var banksL : Banks .
+	var atm1 : Atm .
+	var atmb : ATMBalance .
+
+	op atmbalance : M100 M200 M500 M1000 M2000 -> ATMBalance .
+	op atm : AtmNumber Banks ATMBalance -> Atm .
+	
+	op balAtm : Balance Atm -> Balance .
+	eq balAtm(balance, atm1) = balance .
+
+	--- state for how many 100czk banknotes atm has left
+	op getATMBalance100 : Atm -> M100 .
+	eq getATMBalance100(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000))) = m100 .
+
+	--- state for how many 200czk banknotes atm has left
+	op getATMBalance200 : Atm -> M200 .
+	eq getATMBalance200(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000))) = m200 .
+
+	--- state for how many 500czk banknotes atm has left
+	op getATMBalance500 : Atm -> M500 .
+	eq getATMBalance500(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000))) = m500 .
+
+	--- state for how many 1000czk banknotes atm has left
+	op getATMBalance1000 : Atm -> M1000 .
+	eq getATMBalance1000(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000))) = m1000 .
+
+	--- state for how many 2000czk banknotes atm has left
+	op getATMBalance2000 : Atm -> M2000 .
+	eq getATMBalance2000(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000))) = m2000 .
+
+	--- operation to get atm balance
+	op getATMBalance : Atm -> Nat .
+	eq getATMBalance(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000))) =  m100 + m200 + m500 + m1000 + m2000 .
+
+	op money : M100 M200 M500 M1000 M2000 -> Money .
+	--- operation to insert money into atm
+	op insertMoney : Atm Money -> Atm . 
+	eq insertMoney(atm(atmNum, banksL, atmbalance(m100, m200, m500, m1000, m2000)), money(m100_2, m200_2, m500_2, m1000_2, m2000_2)) = 
+		atm(atmNum, banksL, atmbalance(
+			m100 + m100_2, 
+			m200 + m200_2, 
+			m500 + m500_2, 
+			m1000 + m1000_2, 
+			m2000 + m2000_2)) .
+
+	--- get money balance and withdraw that amount from atm
+	op getMoneyBalanceAndWithdraw : Money Atm -> Balance .
+	eq getMoneyBalanceAndWithdraw(money(m100, m200, m500, m1000, m2000), atm(atmNum, banksL, atmbalance(m100_2, m200_2, m500_2, m1000_2, m2000_2))) =
+		if m100 <= m100_2 and m200 <= m200_2 and m500 <= m500_2 and m1000 <= m1000_2 and m2000 <= m2000_2
+			then balAtm((m100 * 100) + (m200 * 200) + (m500 * 500) + (m1000 * 1000) + (m2000 * 2000), 
+			atm(atmNum, banksL, atmbalance(m100_2 - m100, m200_2 - m200, m500_2 - m500, m1000_2 - m1000, m2000_2 - m2000)))
+		else
+			nilBalance
+		fi .
+
+	--- get money balance and deposit that amount to atm
+	op getMoneyBalanceAndDeposit : Money Atm -> Balance .
+	eq getMoneyBalanceAndDeposit(money(m100, m200, m500, m1000, m2000), atm(atmNum, banksL, atmbalance(m100_2, m200_2, m500_2, m1000_2, m2000_2))) =
+		balAtm((m100 * 100) + (m200 * 200) + (m500 * 500) + (m1000 * 1000) + (m2000 * 2000), 
+			   atm(atmNum, banksL, atmbalance(m100 + m100_2, m200 + m200_2, m500 + m500_2, m1000 + m1000_2, m2000 + m2000_2))) .
+
+	--- withdraw operation used by customer
+	op withdraw : Money Card CardPin Atm -> Status .
+	eq withdraw(money(m100, m200, m500, m1000, m2000), card(cardNum, cardPin, balance, bankName3), cardPinIn, 
+				atm(atmNum, banksL, atmb)) =
+	withdraw(getAccount(card(cardNum, cardPin, balance, bankName3), 
+			    		getBankAccounts(getBank(bankName3, banksL), banksL)), 
+			cardPinIn, 
+			getMoneyBalanceAndWithdraw(money(m100, m200, m500, m1000, m2000), atm(atmNum, banksL, atmb))) .
+
+
+	--- deposit operation used by customer
+	op deposit : Money Card CardPin Atm -> Status .
+	eq deposit(money(m100, m200, m500, m1000, m2000), card(cardNum, cardPin, balance, bankName3), cardPinIn, 
+				atm(atmNum, banksL, atmb)) =
+		deposit(getAccount(card(cardNum, cardPin, balance, bankName3), 
+			    		getBankAccounts(getBank(bankName3, banksL), banksL)),
+				cardPinIn,
+				getMoneyBalanceAndDeposit(money(m100, m200, m500, m1000, m2000), atm(atmNum, banksL, atmb))) .
+
+	--- operation used by customer to retrieve information about himself
+	op getAccountInfo : Card CardPin Atm -> Account .
+	eq getAccountInfo(card(cardNum, cardPin, balance, bankName3), cardPinIn, atm(atmNum, banksL, atmb)) =
+		if cardPinIn == cardPin
+			then getAccount(card(cardNum, cardPin, balance, bankName3), 
+			    		getBankAccounts(getBank(bankName3, banksL), banksL))
+			else nilAccount
+		fi .
+
+	--- operation used by customer to check his card balance
+	op checkAccountBalance : Card CardPin Atm -> Balance .
+	eq checkAccountBalance(card(cardNum, cardPin, balance, bankName3), cardPinIn, atm(atmNum, banksL, atmb)) =
+		if cardPinIn == cardPin
+			then getAccBalance(getAccount(card(cardNum, cardPin, balance, bankName3), 
+			    			  			  getBankAccounts(getBank(bankName3, banksL), banksL)))
+			else nilBalance
+		fi .
+
+endfm
+
+
+fmod TEST is
+	protecting BANK .
+	protecting ATM .
+
+	var b : Balance .
+	var str : String .
+
+	--- define environment
+	op testCard : -> Card .
+	eq testCard = card(123456789, 1234, 10000, "VUB") .
+
+	op testCardPin : -> CardPin .
+	eq testCardPin = 1234 .
+
+	op testCard2 : -> Card .
+	eq testCard2 = card(987654321, 4321, 500, "CSOB") .
+
+	op testCardPin2 : -> CardPin .
+	eq testCardPin2 = 4321 .
+
+	op testAccount : -> Account .
+	eq testAccount = account("VUB", testCard) . 
+
+	op testAccount2 : -> Account .
+	eq testAccount2 = account("CSOB", testCard2) .
+
+	op testMoney : -> Money .
+	eq testMoney = money(1, 0, 0, 0, 0) .
+
+	op testMoney2 : -> Money .
+	eq testMoney2 = money(10, 0, 0, 0, 5) .
+
+	op testBank : -> Bank .
+	eq testBank = bank("VUB", bankAccs(testAccount, bankAccs)) .
+
+	op testBank2 : -> Bank .
+	eq testBank2 = bank("CSOB", bankAccs(testAccount2, bankAccs)) .
+
+	op testBanks : -> Banks .
+	eq testBanks = banks(testBank, banks(testBank2, banks)) .
+
+	op testAtm : -> Atm .
+	eq testAtm = atm(2468, testBanks, atmbalance(100, 500, 500, 50, 10)) .
+
+	--- demonstrate usage
+	op testWithdraw : -> Status .
+	eq testWithdraw = withdraw(testMoney, testCard, testCardPin, testAtm) .
+
+	op testDeposit : -> Status .
+	eq testDeposit = deposit(testMoney2, testCard2, testCardPin2, testAtm) .
+
+	op testCheckAccountBalance : -> Balance .
+	eq testCheckAccountBalance = checkAccountBalance(testCard, testCardPin, testAtm) .
+
+	op testAccountInfo : -> Account .
+	eq testAccountInfo = getAccountInfo(testCard2, testCardPin2, testAtm) .
+
+	--- test for invalid withdraw - not enough money
+	op testInvalidWithdraw : -> Status .
+	eq testInvalidWithdraw = withdraw(testMoney2, testCard2, testCardPin2, testAtm) .
+
+	--- test for invalid deposit - wrong card pin
+	op testInvalidDeposit : -> Status .
+	eq testInvalidDeposit = deposit(testMoney2, testCard2, testCardPin, testAtm) .
+endfm
